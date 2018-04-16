@@ -18,9 +18,9 @@ BIAS = True
 BIAS_STRENGTH = 0.01
 
 # Default bounds to evaluate over
-XMIN = -3
-XMAX = 3
-YMIN = -3
-YMAX = 3
-ZMIN = -3
-ZMAX = 3
+XMIN = -20
+XMAX = 20
+YMIN = -20
+YMAX = 20
+ZMIN = -20
+ZMAX = 20

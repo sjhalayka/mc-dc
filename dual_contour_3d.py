@@ -61,6 +61,9 @@ def dual_contour_3d(f, f_normal, xmin=XMIN, xmax=XMAX, ymin=YMIN, ymax=YMAX, zmi
     vert_array = []
     vert_indices = {}
     for x in range(xmin, xmax):
+
+        print(x)
+        
         for y in range(ymin, ymax):
             for z in range(zmin, zmax):
                 vert = dual_contour_3d_find_best_vertex(f, f_normal, x, y, z)
@@ -72,6 +75,9 @@ def dual_contour_3d(f, f_normal, xmin=XMIN, xmax=XMAX, ymin=YMIN, ymax=YMAX, zmi
     # For each cell edge, emit an face between the center of the adjacent cells if it is a sign changing edge
     faces = []
     for x in range(xmin, xmax):
+
+        print(x)
+        
         for y in range(ymin, ymax):
             for z in range(ymin, ymax):
                 if x > xmin and y > ymin:
@@ -108,34 +114,64 @@ def dual_contour_3d(f, f_normal, xmin=XMIN, xmax=XMAX, ymin=YMIN, ymax=YMAX, zmi
     return Mesh(vert_array, faces)
 
 
-def circle_function(x, y, z):
-    return 2.5 - math.sqrt(x*x + y*y + z*z)
+def qmul(A_x, A_y, A_z, A_w, B_x, B_y, B_z, B_w):
+    C_x = A_x*B_x - A_y*B_y - A_z*B_z - A_w*B_w
+    C_y = A_x*B_y + A_y*B_x + A_z*B_w - A_w*B_z
+    C_z = A_x*B_z - A_y*B_w + A_z*B_x + A_w*B_y
+    C_w = A_x*B_w + A_y*B_z - A_z*B_y + A_w*B_x
 
+    return C_x, C_y, C_z, C_w
 
-def circle_normal(x, y, z):
-    l = math.sqrt(x*x + y*y + z*z)
-    return V3(-x / l, -y / l, -z / l)
+def qadd(A_x, A_y, A_z, A_w, B_x, B_y, B_z, B_w):
+    C_x = A_x + B_x
+    C_y = A_y + B_y
+    C_z = A_z + B_z
+    C_w = A_w + B_w
 
-def intersect_function(x, y, z):
-    y -= 0.3
-    x -= 0.5
-    x = abs(x)
-    return min(x - y, x + y)
+    return C_x, C_y, C_z, C_w
 
-def normal_from_function(f, d=0.01):
+# Quaternion Julia set Z = Z*Z + C
+def quat_function(x, y, z):
+    Z_x = x*0.1
+    Z_y = y*0.1
+    Z_z = z*0.1
+    Z_w = 0
+    C_x = 0.3 # values of 0 for C make for a unit ball
+    C_y = 0.5
+    C_z = 0.4
+    C_w = 0.2
+    threshold = 4
+    max_iterations = 8
+    len_sq = Z_x*Z_x + Z_y*Z_y + Z_z*Z_z + Z_w*Z_w
+    threshold_sq = threshold*threshold
+
+    for i in range(0, max_iterations):
+        Z_x, Z_y, Z_z, Z_w = qmul(Z_x, Z_y, Z_z, Z_w, Z_x, Z_y, Z_z, Z_w) # Z*Z        
+        Z_x, Z_y, Z_z, Z_w = qadd(Z_x, Z_y, Z_z, Z_w, C_x, C_y, C_z, C_w) # + C
+
+        len_sq = Z_x*Z_x + Z_y*Z_y + Z_z*Z_z + Z_w*Z_w
+        
+        if len_sq > threshold_sq:
+            break;
+
+    return threshold - math.sqrt(len_sq)
+
+def quat_normal_from_function(f, d=0.00001):
     """Given a sufficiently smooth 3d function, f, returns a function approximating of the gradient of f.
     d controls the scale, smaller values are a more accurate approximation."""
     def norm(x, y, z):
         return V3(
-            (f(x + d, y, z) - f(x - d, y, z)) / 2 / d,
-            (f(x, y + d, z) - f(x, y - d, z)) / 2 / d,
-            (f(x, y, z + d) - f(x, y, z - d)) / 2 / d,
+            (f(x + d, y, z) - f(x - d, y, z)),
+            (f(x, y + d, z) - f(x, y - d, z)),
+            (f(x, y, z + d) - f(x, y, z - d))
         )
     return norm
 
-__all__ = ["dual_contour_3d"]
 
+__all__ = ["dual_contour_3d"]
+# https://github.com/BorisTheBrave/mc-dc/tree/master
+# https://www.gamedev.net/forums/topic/696356-marching-cubes-and-dual-contouring-tutorial/
 if __name__ == "__main__":
-    mesh = dual_contour_3d(intersect_function, normal_from_function(intersect_function))
+    mesh = dual_contour_3d(quat_function, quat_normal_from_function(quat_function))
     with open("output.obj", "w") as f:
         make_obj(f, mesh)
