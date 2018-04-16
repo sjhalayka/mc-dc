@@ -361,10 +361,53 @@ def marching_cubes_3d(f, xmin=XMIN, xmax=XMAX, ymin=YMIN, ymax=YMAX, zmin=ZMIN, 
 def circle_function(x, y, z):
     return 2.5 - math.sqrt(x*x + y*y + z*z)
 
+def qmul(A_x, A_y, A_z, A_w, B_x, B_y, B_z, B_w):
+    C_x = A_x*B_x - A_y*B_y - A_z*B_z - A_w*B_w
+    C_y = A_x*B_y + A_y*B_x + A_z*B_w - A_w*B_z
+    C_z = A_x*B_z - A_y*B_w + A_z*B_x + A_w*B_y
+    C_w = A_x*B_w + A_y*B_z - A_z*B_y + A_w*B_x
+
+    return C_x, C_y, C_z, C_w
+
+def qadd(A_x, A_y, A_z, A_w, B_x, B_y, B_z, B_w):
+    C_x = A_x + B_x
+    C_y = A_y + B_y
+    C_z = A_z + B_z
+    C_w = A_w + B_w
+
+    return C_x, C_y, C_z, C_w
+
+# Quaternion Julia set Z = Z*Z + C
+# Quaternion Julia set Z = Z*Z + C
+def quat_function(x, y, z):
+    Z_x = x*0.1
+    Z_y = y*0.1
+    Z_z = z*0.1
+    Z_w = 0
+    C_x = 0.3 # values of 0 for C make for a unit ball
+    C_y = 0.5
+    C_z = 0.4
+    C_w = 0.2
+    threshold = 4
+    max_iterations = 8
+    len_sq = Z_x*Z_x + Z_y*Z_y + Z_z*Z_z + Z_w*Z_w
+    threshold_sq = threshold*threshold
+
+    for i in range(0, max_iterations):
+        Z_x, Z_y, Z_z, Z_w = qmul(Z_x, Z_y, Z_z, Z_w, Z_x, Z_y, Z_z, Z_w) # Z*Z        
+        Z_x, Z_y, Z_z, Z_w = qadd(Z_x, Z_y, Z_z, Z_w, C_x, C_y, C_z, C_w) # + C
+
+        len_sq = Z_x*Z_x + Z_y*Z_y + Z_z*Z_z + Z_w*Z_w
+        
+        if len_sq > threshold_sq:
+            break;
+
+    return threshold - math.sqrt(len_sq)
+
 
 def make_circle_obj(filename):
     """Writes an obj file containing a sphere meshed via marching cubes"""
-    mesh = marching_cubes_3d(circle_function)
+    mesh = marching_cubes_3d(quat_function)
     with open(filename, "w") as f:
         make_obj(f, mesh)
 
