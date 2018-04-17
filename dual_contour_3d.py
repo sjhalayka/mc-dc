@@ -4,6 +4,7 @@ from common import adapt
 from settings import ADAPTIVE, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX
 import numpy as np
 import math
+import random
 from utils_3d import V3, Quad, Mesh, make_obj
 from qef import solve_qef_3d
 
@@ -161,36 +162,26 @@ def quat_normal_from_function(f, d=0.000001):
     d controls the scale, smaller values are a more accurate approximation."""
     def norm(x, y, z):
 
+        num_samples = 1000
         sample_points = []
 
-        for x_counter in range(-1, 2):
-            for y_counter in range(-1, 2):
-                for z_counter in range(-1, 2):
+        for i in range(0, num_samples):
+            sample_point = V3(0, 0, 0)
 
-                    sample_point = V3(0, 0, 0)
-                
-                    if x_counter == -1:
-                        sample_point.x = x - d
-                    if x_counter == 0:
-                        sample_point.x = x
-                    if x_counter == 1:
-                        sample_point.x = x + d
-                        
-                    if y_counter == -1:
-                        sample_point.y = y - d
-                    if y_counter == 0:
-                        sample_point.y = y
-                    if y_counter == 1:
-                        sample_point.y = y + d
+            u = random.randint(0, 1000)/1000.0
+            v = random.randint(0, 1000)/1000.0
 
-                    if z_counter == -1:
-                        sample_point.z = z - d
-                    if z_counter == 0:
-                        sample_point.z = z
-                    if z_counter == 1:
-                        sample_point.z = z + d
+            pi = 4*math.atan(1);
 
-                    sample_points.append(sample_point)    
+            theta = 2.0*pi*u
+            phi = math.acos(2.0*v - 1.0)
+
+            # generate pseudorandom location on 2-sphere of radius d
+            sample_point.x = d*math.cos(theta)*math.sin(phi)
+            sample_point.y = d*math.sin(theta)*math.sin(phi)
+            sample_point.z = d*math.cos(phi)
+
+            sample_points.append(sample_point)    
 
         normal = V3(0, 0, 0)
 
