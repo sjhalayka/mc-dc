@@ -62,7 +62,7 @@ def dual_contour_3d(f, f_normal, xmin=XMIN, xmax=XMAX, ymin=YMIN, ymax=YMAX, zmi
     vert_indices = {}
     for x in range(xmin, xmax):
 
-        print(x)
+        print x
         
         for y in range(ymin, ymax):
             for z in range(zmin, zmax):
@@ -76,7 +76,7 @@ def dual_contour_3d(f, f_normal, xmin=XMIN, xmax=XMAX, ymin=YMIN, ymax=YMAX, zmi
     faces = []
     for x in range(xmin, xmax):
 
-        print(x)
+        print x
         
         for y in range(ymin, ymax):
             for z in range(ymin, ymax):
@@ -113,7 +113,6 @@ def dual_contour_3d(f, f_normal, xmin=XMIN, xmax=XMAX, ymin=YMIN, ymax=YMAX, zmi
 
     return Mesh(vert_array, faces)
 
-
 def qmul(A_x, A_y, A_z, A_w, B_x, B_y, B_z, B_w):
     C_x = A_x*B_x - A_y*B_y - A_z*B_z - A_w*B_w
     C_y = A_x*B_y + A_y*B_x + A_z*B_w - A_w*B_z
@@ -136,16 +135,16 @@ def quat_function(x, y, z):
     Z_y = y*0.1
     Z_z = z*0.1
     Z_w = 0
-    C_x = 0.3 # values of 0 for C make for a unit ball
-    C_y = 0.5
-    C_z = 0.4
-    C_w = 0.2
+    C_x = 0.0 # values of 0 for C make for a unit ball
+    C_y = 0.0
+    C_z = 0.0
+    C_w = 0.0
     threshold = 4
     max_iterations = 8
     len_sq = Z_x*Z_x + Z_y*Z_y + Z_z*Z_z + Z_w*Z_w
     threshold_sq = threshold*threshold
 
-    for i in range(0, max_iterations):
+    for i in range(0, max_iterations):        
         Z_x, Z_y, Z_z, Z_w = qmul(Z_x, Z_y, Z_z, Z_w, Z_x, Z_y, Z_z, Z_w) # Z*Z        
         Z_x, Z_y, Z_z, Z_w = qadd(Z_x, Z_y, Z_z, Z_w, C_x, C_y, C_z, C_w) # + C
 
@@ -156,16 +155,73 @@ def quat_function(x, y, z):
 
     return threshold - math.sqrt(len_sq)
 
-def quat_normal_from_function(f, d=0.00001):
+
+def quat_normal_from_function(f, d=0.000001):
+    """Given a sufficiently smooth 3d function, f, returns a function approximating of the gradient of f.
+    d controls the scale, smaller values are a more accurate approximation."""
+    def norm(x, y, z):
+
+        sample_points = []
+
+        for x_counter in range(-1, 2):
+            for y_counter in range(-1, 2):
+                for z_counter in range(-1, 2):
+
+                    sample_point = V3(0, 0, 0)
+                
+                    if x_counter == -1:
+                        sample_point.x = x - d
+                    if x_counter == 0:
+                        sample_point.x = x
+                    if x_counter == 1:
+                        sample_point.x = x + d
+                        
+                    if y_counter == -1:
+                        sample_point.y = y - d
+                    if y_counter == 0:
+                        sample_point.y = y
+                    if y_counter == 1:
+                        sample_point.y = y + d
+
+                    if z_counter == -1:
+                        sample_point.z = z - d
+                    if z_counter == 0:
+                        sample_point.z = z
+                    if z_counter == 1:
+                        sample_point.z = z + d
+
+                    sample_points.append(sample_point)    
+
+        normal = V3(0, 0, 0)
+
+        for sample_counter in range(0, len(sample_points)):
+            if f(sample_points[sample_counter].x, sample_points[sample_counter].y, sample_points[sample_counter].z) < 0:
+                normal.x += -sample_points[sample_counter].x
+                normal.y += -sample_points[sample_counter].y
+                normal.z += -sample_points[sample_counter].z
+
+        if 0 == normal.x*normal.x + normal.y*normal.y + normal.z*normal.z:
+            normal.x = 1;
+            
+        return normal.normalize()
+    return norm
+
+
+
+def circle_function(x, y, z):
+    return 2.5 - math.sqrt(x*x + y*y + z*z)
+
+def normal_from_function(f, d=0.001):
     """Given a sufficiently smooth 3d function, f, returns a function approximating of the gradient of f.
     d controls the scale, smaller values are a more accurate approximation."""
     def norm(x, y, z):
         return V3(
-            (f(x + d, y, z) - f(x - d, y, z)),
-            (f(x, y + d, z) - f(x, y - d, z)),
-            (f(x, y, z + d) - f(x, y, z - d))
-        )
+            (f(x + d, y, z) - f(x - d, y, z)) / 2 / d,
+            (f(x, y + d, z) - f(x, y - d, z)) / 2 / d,
+            (f(x, y, z + d) - f(x, y, z - d)) / 2 / d,
+        ).normalize()
     return norm
+
 
 
 __all__ = ["dual_contour_3d"]
@@ -173,5 +229,6 @@ __all__ = ["dual_contour_3d"]
 # https://www.gamedev.net/forums/topic/696356-marching-cubes-and-dual-contouring-tutorial/
 if __name__ == "__main__":
     mesh = dual_contour_3d(quat_function, quat_normal_from_function(quat_function))
+    #mesh = dual_contour_3d(circle_function, normal_from_function(circle_function))
     with open("output.obj", "w") as f:
         make_obj(f, mesh)
